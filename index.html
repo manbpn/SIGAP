@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instrumen Supervisi Akademik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F4F2EA;
+    --surface: #FFFFFF;
+    --ink: #23281F;
+    --ink-soft: #5B6156;
+    --primary: #1B4332;
+    --primary-light: #52796F;
+    --gold: #A9822C;
+    --gold-soft: #E7D9AE;
+    --border: #DCD6C4;
+    --good: #2F6F4E;
+    --mid: #B8862B;
+    --bad: #A64B41;
+    --font-display: 'Lora', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --radius: 10px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(27,67,50,0.05), transparent 40%),
+      radial-gradient(circle at 90% 10%, rgba(169,130,44,0.06), transparent 45%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    padding: 28px 16px 80px;
+  }
+  .wrap{ max-width: 880px; margin: 0 auto; }
+
+  /* ---------- Letterhead ---------- */
+  .letterhead{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px 18px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    box-shadow: 0 1px 2px rgba(23,30,20,0.04);
+  }
+  .seal{
+    flex: none;
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    background: conic-gradient(from 210deg, var(--primary), var(--primary-light), var(--gold), var(--primary));
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .seal::before{
+    content:"";
+    position:absolute; inset:5px;
+    border-radius:50%;
+    background: var(--surface);
+  }
+  .seal span{
+    position:relative;
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size:15px;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+  }
+  .letterhead-text{ flex:1; min-width:0; }
+  .letterhead-text .l1{
+    font-size: 13px; font-weight:700; letter-spacing:0.02em;
+    color: var(--ink); margin:0;
+  }
+  .letterhead-text .l2{
+    font-size: 13px; font-weight:700; letter-spacing:0.02em;
+    color: var(--ink); margin: 1px 0 0;
+  }
+  .letterhead-text .l3{
+    font-family: var(--font-display);
+    font-size: 17px; font-weight:700; color: var(--primary);
+    margin: 3px 0 0;
+  }
+  .letterhead-text .l4{
+    font-size: 11.5px; color: var(--ink-soft); margin: 3px 0 0;
+  }
+  .hr{
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--gold) 55%, transparent 100%);
+    margin: 14px 0 12px;
+    border-radius: 2px;
+  }
+  .title-block{ text-align:center; }
+  .title-block h1{
+    font-family: var(--font-display);
+    font-size: 18px; margin: 0; color: var(--ink);
+  }
+  .title-block p{
+    margin: 2px 0 0; font-size: 12.5px; color: var(--ink-soft);
+  }
+
+  /* ---------- Gauge / signature element ---------- */
+  .gauge-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-top: 14px;
+    padding: 18px 20px;
+    display:flex;
+    align-items:center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .gauge{
+    flex: none;
+    width: 116px; height: 116px;
+    border-radius: 50%;
+    background: conic-gradient(var(--primary) calc(var(--pct,0) * 1%), #E7E3D5 0);
+    display:flex; align-items:center; justify-content:center;
+    transition: background 0.4s ease;
+  }
+  .gauge-inner{
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    background: var(--surface);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .gauge-inner .num{
+    font-family: var(--font-mono); font-weight:600; font-size: 22px; color: var(--ink);
+  }
+  .gauge-inner .lbl{ font-size: 10px; color: var(--ink-soft); letter-spacing:0.04em; }
+  .gauge-meta{ flex: 1; min-width: 200px; }
+  .gauge-meta .status{
+    display:inline-block;
+    font-family: var(--font-display); font-weight:700; font-size: 15px;
+    padding: 4px 12px; border-radius: 999px;
+    background: var(--gold-soft); color: #6B5314;
+  }
+  .gauge-meta p{ margin: 8px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+  .gauge-meta .breakdown{
+    display:flex; gap:18px; margin-top:10px; flex-wrap:wrap;
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft);
+  }
+  .gauge-meta .breakdown b{ color: var(--ink); font-weight:600; }
+
+  /* ---------- Identity form ---------- */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-top: 14px;
+    padding: 18px 20px 20px;
+  }
+  .card h2{
+    font-family: var(--font-display);
+    font-size: 14px; margin: 0 0 12px;
+    color: var(--primary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .field-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+  }
+  .field label{
+    display:block; font-size: 11.5px; font-weight:600;
+    color: var(--ink-soft); margin-bottom: 4px; letter-spacing:0.02em;
+  }
+  .field input{
+    width:100%; border: 1px solid var(--border); border-radius: 7px;
+    padding: 9px 10px; font-family: var(--font-body); font-size: 13.5px;
+    background: #FCFBF7; color: var(--ink);
+  }
+  .field input:focus{
+    outline: 2px solid var(--primary-light); outline-offset: 1px;
+    border-color: var(--primary-light);
+  }
+
+  /* ---------- Sections & items ---------- */
+  .section{ margin-top: 16px; }
+  .section-head{
+    display:flex; align-items:baseline; gap:10px;
+    padding: 10px 16px;
+    background: var(--primary);
+    color: #F4F2EA;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .section-head .code{
+    font-family: var(--font-display); font-weight:700; font-size:16px;
+  }
+  .section-head .name{ font-size: 13.5px; font-weight:600; letter-spacing:0.01em; }
+  .section-body{
+    background: var(--surface);
+    border: 1px solid var(--border); border-top:none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 4px 0;
+  }
+  .group{ padding: 10px 18px 4px; }
+  .group-title{
+    font-size: 12.5px; font-weight:700; color: var(--primary-light);
+    margin: 6px 0 6px;
+  }
+  .item{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 0;
+    border-top: 1px solid #EFEBDD;
+  }
+  .group .item:first-of-type{ border-top: none; }
+  .item-text{ font-size: 13px; color: var(--ink); padding-right: 4px; }
+  .item-controls{
+    display:flex; align-items:center; gap: 14px; flex-wrap: wrap;
+  }
+  .score-group{
+    display:inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow:hidden;
+  }
+  .score-opt{ position:relative; }
+  .score-opt input{ position:absolute; opacity:0; width:1px; height:1px; }
+  .score-opt label{
+    display:block; cursor:pointer;
+    font-family: var(--font-mono); font-size: 11.5px; font-weight:600;
+    padding: 6px 11px; color: var(--ink-soft);
+    background: #FCFBF7; white-space:nowrap;
+    border-right: 1px solid var(--border);
+  }
+  .score-opt:last-child label{ border-right:none; }
+  .score-opt input:focus-visible + label{ outline: 2px solid var(--primary-light); outline-offset: -2px; }
+  .score-opt[data-val="2"] input:checked + label{ background: var(--good); color:#fff; }
+  .score-opt[data-val="1"] input:checked + label{ background: var(--mid); color:#fff; }
+  .score-opt[data-val="0"] input:checked + label{ background: var(--bad); color:#fff; }
+  .note-input{
+    flex: 1; min-width: 160px;
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 9px; font-size: 12.5px; font-family: var(--font-body);
+    background: #FCFBF7; color: var(--ink);
+  }
+  .note-input:focus{ outline: 2px solid var(--primary-light); outline-offset:1px; border-color:var(--primary-light); }
+  .print-score{ display:none; }
+
+  @media (min-width: 720px){
+    .item{ grid-template-columns: 1.5fr 1.2fr; align-items:center; gap: 14px; }
+    .item-controls{ justify-content:flex-end; }
+  }
+
+  /* ---------- Signature / footer ---------- */
+  .sign-grid{
+    display:grid; grid-template-columns: 1fr; gap: 22px;
+    margin-top: 14px;
+  }
+  @media (min-width: 640px){ .sign-grid{ grid-template-columns: 1fr 1fr; } }
+  .sign-block{ text-align:center; font-size: 13px; }
+  .sign-block .place-date{ margin-bottom: 4px; color: var(--ink-soft); font-size:12.5px; }
+  .sign-block .role{ margin-bottom: 56px; }
+  .sign-block .name{ font-weight:700; text-decoration: underline; }
+  .sign-block .nip{ font-size: 12px; color: var(--ink-soft); }
+
+  /* ---------- Actions ---------- */
+  .actions{
+    position: sticky; bottom: 14px;
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+    margin-top: 22px;
+  }
+  .btn{
+    font-family: var(--font-body); font-weight:600; font-size: 13px;
+    padding: 11px 20px; border-radius: 999px; border: none; cursor:pointer;
+    box-shadow: 0 2px 8px rgba(23,30,20,0.15);
+  }
+  .btn-primary{ background: var(--primary); color:#fff; }
+  .btn-primary:hover{ background: #163A29; }
+  .btn-ghost{ background: #fff; color: var(--ink); border: 1px solid var(--border); }
+  .btn-ghost:hover{ background: #F4F2EA; }
+  .save-note{ text-align:center; font-size:11px; color: var(--ink-soft); margin-top:8px; }
+
+  /* ---------- Print ---------- */
+  @media print{
+    body{ background:#fff; padding:0; }
+    .actions, .save-note{ display:none !important; }
+    .gauge-card{ break-inside: avoid; }
+    .section{ break-inside: avoid-page; }
+    .score-group{ display:none; }
+    .print-score{
+      display:inline-block; font-family: var(--font-mono); font-weight:700;
+      font-size: 12px; padding: 3px 9px; border-radius: 999px; border:1px solid var(--ink);
+    }
+    .card, .letterhead, .gauge-card, .section-body{ box-shadow:none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="letterhead">
+    <div class="seal"><span>MAN</span></div>
+    <div class="letterhead-text">
+      <p class="l1">KEMENTERIAN AGAMA REPUBLIK INDONESIA</p>
+      <p class="l2">KANTOR KEMENTERIAN AGAMA KOTA BALIKPAPAN</p>
+      <p class="l3">MADRASAH ALIYAH NEGERI BALIKPAPAN</p>
+      <p class="l4">Jl. Prapatan, No. 10 RT.26 Balikpapan Kota</p>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+  <div class="title-block">
+    <h1>Instrumen Supervisi Akademik (Kurikulum Merdeka)</h1>
+    <p>Supervisi Pelaksanaan Pembelajaran</p>
+  </div>
+
+  <div class="gauge-card">
+    <div class="gauge" id="gauge">
+      <div class="gauge-inner">
+        <div class="num" id="gaugeNum">0</div>
+        <div class="lbl">NILAI AKHIR</div>
+      </div>
+    </div>
+    <div class="gauge-meta">
+      <span class="status" id="statusLabel">Belum dinilai</span>
+      <p>Nilai Akhir = (Skor Perolehan ÷ Skor Maksimal) × 100%. Skor maksimal 38 aspek × 2 = 76.</p>
+      <div class="breakdown">
+        <span>Skor perolehan: <b id="skorPerolehan">0</b></span>
+        <span>Terisi: <b id="terisi">0/38</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Identitas yang Disupervisi</h2>
+    <div class="field-grid">
+      <div class="field">
+        <label for="namaSekolah">Nama Sekolah</label>
+        <input id="namaSekolah" data-key="namaSekolah" placeholder="Madrasah Aliyah Negeri Balikpapan">
+      </div>
+      <div class="field">
+        <label for="namaGuru">Nama Guru</label>
+        <input id="namaGuru" data-key="namaGuru" placeholder="Nama guru yang disupervisi">
+      </div>
+      <div class="field">
+        <label for="mapel">Mata Pelajaran</label>
+        <input id="mapel" data-key="mapel" placeholder="Contoh: Biologi">
+      </div>
+      <div class="field">
+        <label for="kelasMateri">Kelas / Materi / Topik</label>
+        <input id="kelasMateri" data-key="kelasMateri" placeholder="Contoh: XI IPA / Sistem Ekskresi">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Data Supervisor & Pelaksanaan</h2>
+    <div class="field-grid">
+      <div class="field">
+        <label for="namaSupervisor">Nama Supervisor</label>
+        <input id="namaSupervisor" data-key="namaSupervisor" placeholder="Nama kepala madrasah / supervisor">
+      </div>
+      <div class="field">
+        <label for="nipSupervisor">NIP Supervisor</label>
+        <input id="nipSupervisor" data-key="nipSupervisor" placeholder="NIP supervisor" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="tempat">Tempat Pelaksanaan</label>
+        <input id="tempat" data-key="tempat" placeholder="Balikpapan">
+      </div>
+      <div class="field">
+        <label for="tanggal">Tanggal Pelaksanaan</label>
+        <input id="tanggal" data-key="tanggal" type="date">
+      </div>
+    </div>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="card">
+    <h2>Ringkasan Penilaian</h2>
+    <div class="field-grid">
+      <div class="field">
+        <label>Jumlah / Skor Total</label>
+        <input readonly id="ringkasSkor" style="font-family:var(--font-mono);font-weight:600;">
+      </div>
+      <div class="field">
+        <label>Nilai Akhir</label>
+        <input readonly id="ringkasNilai" style="font-family:var(--font-mono);font-weight:600;">
+      </div>
+      <div class="field">
+        <label>Ketercapaian</label>
+        <input readonly id="ringkasKeterangan">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pengesahan</h2>
+    <div class="sign-grid">
+      <div class="sign-block">
+        <p class="place-date">Guru yang di Supervisi</p>
+        <div class="role"></div>
+        <p class="name" id="signGuru">.....................................</p>
+        <p class="nip">Nama Guru</p>
+      </div>
+      <div class="sign-block">
+        <p class="place-date" id="signPlaceDate">......................, .....................</p>
+        <p style="margin:0 0 2px;color:var(--ink-soft);">Kepala Madrasah / Supervisor</p>
+        <div class="role"></div>
+        <p class="name" id="signSupervisor">.....................................</p>
+        <p class="nip" id="signNip">NIP.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="printBtn">Cetak / Simpan PDF</button>
+    <button class="btn btn-ghost" id="resetBtn">Bersihkan Formulir</button>
+  </div>
+  <p class="save-note" id="saveNote">Draf tersimpan otomatis di perangkat ini.</p>
+
+</div>
+
+<script>
+const DATA = [
+  { code:'A', title:'Kegiatan Pendahuluan', groups:[
+    { num:1, title:'Orientasi', items:[
+      {id:'A1a', text:'Guru menyiapkan fisik dan psikis peserta didik dengan menyapa dan memberi salam.'},
+      {id:'A1b', text:'Guru menyampaikan rencana kegiatan baik individual, kerja kelompok, dan melakukan observasi.'},
+    ]},
+    { num:2, title:'Motivasi', items:[
+      {id:'A2a', text:'Guru mengajukan pertanyaan yang menantang untuk memotivasi peserta didik / pemantik.'},
+      {id:'A2b', text:'Guru menyampaikan manfaat, tujuan materi pembelajaran.'},
+    ]},
+    { num:3, title:'Apersepsi', items:[
+      {id:'A3a', text:'Guru menyampaikan kompetensi yang akan dicapai peserta didik.'},
+      {id:'A3b', text:'Guru mengaitkan materi dengan materi pembelajaran sebelumnya.'},
+      {id:'A3c', text:'Guru mendemonstrasikan sesuatu yang terkait dengan materi pembelajaran.'},
+    ]},
+  ]},
+  { code:'B', title:'Kegiatan Inti', groups:[
+    { num:1, title:'Penguasaan materi pembelajaran', items:[
+      {id:'B1a', text:'Guru menyesuaikan materi dengan tujuan pembelajaran.'},
+      {id:'B1b', text:'Guru mengaitkan materi dengan pengetahuan lain yang relevan, perkembangan iptek dan kehidupan nyata.'},
+      {id:'B1c', text:'Guru menyajikan pembahasan materi pembelajaran dengan tepat.'},
+      {id:'B1d', text:'Guru menyajikan materi secara sistematis (mudah ke sulit, dari konkrit ke abstrak).'},
+    ]},
+    { num:2, title:'Penerapan strategi pembelajaran yang mendidik', items:[
+      {id:'B2a', text:'Guru melaksanakan pembelajaran sesuai dengan kompetensi yang akan dicapai.'},
+      {id:'B2b', text:'Guru melaksanakan pembelajaran yang menumbuhkan partisipasi aktif peserta didik dalam mengajukan pertanyaan.'},
+      {id:'B2c', text:'Guru melaksanakan pembelajaran yang menumbuhkan partisipasi aktif peserta didik dalam mengemukakan pendapat.'},
+      {id:'B2d', text:'Guru melaksanakan pembelajaran yang mengembangkan keterampilan peserta didik sesuai dengan materi ajar.'},
+      {id:'B2e', text:'Guru melaksanakan pembelajaran yang bersifat kontekstual.'},
+      {id:'B2f', text:'Guru melaksanakan pembelajaran sesuai dengan alokasi waktu yang direncanakan.'},
+    ]},
+    { num:3, title:'Aktivitas Pembelajaran HOTS dan Kecakapan Abad 21 (4C)', items:[
+      {id:'B3a', text:'Guru melaksanakan pembelajaran yang mengasah kemampuan Creativity peserta didik.'},
+      {id:'B3b', text:'Guru melaksanakan pembelajaran yang mengasah kemampuan Critical Thinking peserta didik.'},
+      {id:'B3c', text:'Guru melaksanakan pembelajaran yang mengasah kemampuan Communication peserta didik.'},
+      {id:'B3d', text:'Guru melaksanakan pembelajaran yang mengasah kemampuan Collaboration peserta didik.'},
+    ]},
+    { num:4, title:'Kualitas pembelajaran: manajemen kelas', items:[
+      {id:'B4a', text:'Terciptanya suasana kelas yang kondusif untuk proses belajar mengajar (tanpa disrupsi yang mengalihkan perhatian dari aktivitas belajar).'},
+      {id:'B4b', text:'Terlaksananya penerapan prinsip disiplin positif dalam menegakkan aturan kelas yang telah disepakati bersama.'},
+    ]},
+    { num:5, title:'Pemanfaatan sumber belajar / media pembelajaran', items:[
+      {id:'B5a', text:'Guru menunjukkan keterampilan dalam penggunaan sumber belajar yang bervariasi.'},
+      {id:'B5b', text:'Guru menunjukkan keterampilan dalam penggunaan media pembelajaran.'},
+      {id:'B5c', text:'Guru melibatkan peserta didik dalam pemanfaatan sumber belajar.'},
+      {id:'B5d', text:'Guru melibatkan peserta didik dalam pemanfaatan media pembelajaran.'},
+      {id:'B5e', text:'Menghasilkan kesan yang menarik.'},
+    ]},
+    { num:6, title:'Penggunaan bahasa yang benar dan tepat dalam pembelajaran', items:[
+      {id:'B6a', text:'Menggunakan bahasa lisan secara jelas dan lancar.'},
+      {id:'B6b', text:'Menggunakan bahasa tulis yang baik dan benar.'},
+    ]},
+  ]},
+  { code:'C', title:'Kegiatan Penutup', groups:[
+    { num:1, title:'Proses rangkuman, refleksi, dan tindak lanjut', items:[
+      {id:'C1a', text:'Guru memfasilitasi dan membimbing peserta didik merangkum materi pelajaran.'},
+      {id:'C1b', text:'Guru menunjukkan aktivitas belajar yang bertujuan meningkatkan pengetahuan dan keterampilan mengajar.'},
+      {id:'C1c', text:'Guru menunjukkan aktivitas untuk mengevaluasi dan merefleksikan praktik pengajaran yang telah diterapkan, terutama dari sisi dampaknya terhadap belajar murid.'},
+      {id:'C1d', text:'Terlaksananya penerapan cara, bahan, dan/atau pendekatan baru dalam praktik pengajaran, mulai dari perencanaan, pelaksanaan, sampai evaluasi pembelajaran.'},
+      {id:'C1e', text:'Guru melaksanakan tindak lanjut dengan memberikan arahan kegiatan berikutnya dan tugas perbaikan dan pengayaan secara individu atau kelompok.'},
+    ]},
+    { num:2, title:'Pelaksanaan Penilaian Hasil Belajar', items:[
+      {id:'C2a', text:'Guru melaksanakan Penilaian Sikap melalui observasi.'},
+      {id:'C2b', text:'Guru melaksanakan Penilaian Pengetahuan melalui tes lisan, tulisan.'},
+      {id:'C2c', text:'Guru melaksanakan Penilaian Keterampilan; penilaian kinerja, projek, produk atau portofolio.'},
+    ]},
+  ]},
+];
+
+const TOTAL_ITEMS = DATA.reduce((s,sec)=> s + sec.groups.reduce((s2,g)=> s2 + g.items.length, 0), 0);
+const MAX_SCORE = TOTAL_ITEMS * 2;
+
+const STORE_KEY = 'supervisi-guru-draft';
+let state = { fields: {}, scores: {}, notes: {} };
+
+function buildSections(){
+  const root = document.getElementById('sections');
+  root.innerHTML = '';
+  DATA.forEach(sec=>{
+    const secEl = document.createElement('div');
+    secEl.className = 'section';
+    secEl.innerHTML = `<div class="section-head"><span class="code">${sec.code}.</span><span class="name">${sec.title}</span></div>`;
+    const body = document.createElement('div');
+    body.className = 'section-body';
+    sec.groups.forEach(g=>{
+      const gEl = document.createElement('div');
+      gEl.className = 'group';
+      gEl.innerHTML = `<div class="group-title">${g.num}. ${g.title}</div>`;
+      g.items.forEach(item=>{
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.innerHTML = `
+          <div class="item-text">${item.text}</div>
+          <div class="item-controls">
+            <div class="score-group" role="radiogroup" aria-label="Skor ${item.id}">
+              ${scoreOption(item.id,2,'Sudah Lengkap')}
+              ${scoreOption(item.id,1,'Kurang Lengkap')}
+              ${scoreOption(item.id,0,'Tidak')}
+            </div>
+            <span class="print-score" data-print="${item.id}">—</span>
+            <input class="note-input" placeholder="Catatan" data-note="${item.id}">
+          </div>`;
+        gEl.appendChild(row);
+      });
+      body.appendChild(gEl);
+    });
+    secEl.appendChild(body);
+    root.appendChild(secEl);
+  });
+}
+
+function scoreOption(id,val,label){
+  return `<div class="score-opt" data-val="${val}">
+    <input type="radio" name="score-${id}" id="${id}-${val}" value="${val}">
+    <label for="${id}-${val}">${val} · ${label}</label>
+  </div>`;
+}
+
+function attachListeners(){
+  document.querySelectorAll('.field-grid input[data-key]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      state.fields[inp.dataset.key] = inp.value;
+      updateSignatures();
+      saveDraft();
+    });
+  });
+  document.querySelectorAll('.score-group input[type=radio]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      const id = r.name.replace('score-','');
+      state.scores[id] = Number(r.value);
+      const printSpan = document.querySelector(`.print-score[data-print="${id}"]`);
+      if(printSpan) printSpan.textContent = r.value;
+      recalc();
+      saveDraft();
+    });
+  });
+  document.querySelectorAll('.note-input[data-note]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      state.notes[inp.dataset.note] = inp.value;
+      saveDraft();
+    });
+  });
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+  document.getElementById('resetBtn').addEventListener('click', resetForm);
+}
+
+function updateSignatures(){
+  const f = state.fields;
+  document.getElementById('signGuru').textContent = f.namaGuru ? f.namaGuru : '.....................................';
+  document.getElementById('signSupervisor').textContent = f.namaSupervisor ? f.namaSupervisor : '.....................................';
+  document.getElementById('signNip').textContent = 'NIP. ' + (f.nipSupervisor ? f.nipSupervisor : '.....................................');
+  const tempat = f.tempat ? f.tempat : '......................';
+  let tgl = '.....................';
+  if(f.tanggal){
+    const d = new Date(f.tanggal + 'T00:00:00');
+    if(!isNaN(d)) tgl = d.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+  }
+  document.getElementById('signPlaceDate').textContent = `${tempat}, ${tgl}`;
+}
+
+function recalc(){
+  const answered = Object.keys(state.scores).length;
+  const total = Object.values(state.scores).reduce((a,b)=> a+b, 0);
+  const nilai = MAX_SCORE ? Math.round((total / MAX_SCORE) * 1000) / 10 : 0;
+  let status = 'Belum dinilai';
+  if(answered > 0){
+    if(nilai >= 91) status = 'Sangat Baik';
+    else if(nilai >= 81) status = 'Baik';
+    else if(nilai >= 71) status = 'Cukup';
+    else status = 'Kurang';
+  }
+  document.getElementById('gauge').style.setProperty('--pct', Math.min(nilai,100));
+  document.getElementById('gaugeNum').textContent = answered ? nilai.toFixed(1) : '0';
+  document.getElementById('statusLabel').textContent = status;
+  document.getElementById('skorPerolehan').textContent = `${total} / ${MAX_SCORE}`;
+  document.getElementById('terisi').textContent = `${answered}/${TOTAL_ITEMS}`;
+  document.getElementById('ringkasSkor').value = `${total} / ${MAX_SCORE}`;
+  document.getElementById('ringkasNilai').value = answered ? `${nilai.toFixed(1)}%` : '-';
+  document.getElementById('ringkasKeterangan').value = status;
+}
+
+function saveDraft(){
+  clearTimeout(saveDraft._t);
+  saveDraft._t = setTimeout(async ()=>{
+    try{
+      await window.storage.set(STORE_KEY, JSON.stringify(state), false);
+      const note = document.getElementById('saveNote');
+      note.textContent = 'Draf tersimpan otomatis di perangkat ini · ' + new Date().toLocaleTimeString('id-ID');
+    }catch(e){
+      console.error('Gagal menyimpan draf', e);
+    }
+  }, 500);
+}
+
+async function loadDraft(){
+  try{
+    const res = await window.storage.get(STORE_KEY, false);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      state = Object.assign({fields:{},scores:{},notes:{}}, parsed);
+    }
+  }catch(e){
+    // no existing draft
+  }
+  applyStateToDom();
+}
+
+function applyStateToDom(){
+  Object.entries(state.fields || {}).forEach(([k,v])=>{
+    const el = document.querySelector(`[data-key="${k}"]`);
+    if(el) el.value = v;
+  });
+  Object.entries(state.scores || {}).forEach(([id,val])=>{
+    const radio = document.getElementById(`${id}-${val}`);
+    if(radio){ radio.checked = true; }
+    const printSpan = document.querySelector(`.print-score[data-print="${id}"]`);
+    if(printSpan) printSpan.textContent = val;
+  });
+  Object.entries(state.notes || {}).forEach(([id,v])=>{
+    const el = document.querySelector(`[data-note="${id}"]`);
+    if(el) el.value = v;
+  });
+  updateSignatures();
+  recalc();
+}
+
+async function resetForm(){
+  if(!confirm('Bersihkan semua isian pada formulir ini?')) return;
+  state = { fields:{}, scores:{}, notes:{} };
+  document.querySelectorAll('.field-grid input').forEach(i=> i.value='');
+  document.querySelectorAll('.score-group input[type=radio]').forEach(r=> r.checked=false);
+  document.querySelectorAll('.note-input').forEach(i=> i.value='');
+  document.querySelectorAll('.print-score').forEach(s=> s.textContent='—');
+  updateSignatures();
+  recalc();
+  try{ await window.storage.delete(STORE_KEY, false); }catch(e){}
+  document.getElementById('saveNote').textContent = 'Draf tersimpan otomatis di perangkat ini.';
+}
+
+buildSections();
+attachListeners();
+loadDraft();
+</script>
+</body>
+</html>
