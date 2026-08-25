@@ -46,20 +46,24 @@
     border-radius: var(--radius);
     padding: 22px 24px 18px;
     display:flex;
-    align-items:center;
-    gap:16px;
-    box-shadow: 0 1px 2px rgba(23,30,20,0.04);
-  }
-  .letterhead{
-    display:flex;
-    align-items:center;
+    align-items:flex-start;
     gap: 18px;
+    box-shadow: 0 1px 2px rgba(23,30,20,0.04);
   }
   .letterhead-logo{
     flex: none;
     height: 78px;
     width: auto;
     object-fit: contain;
+  }
+  @media (max-width: 640px){
+    .letterhead{ gap: 8px; padding: 14px 10px 12px; }
+    .letterhead-logo{ height: 44px; }
+    .letterhead-text .l1{ font-size: 10.5px; }
+    .letterhead-text .l2{ font-size: 9.5px; }
+    .letterhead-text .l3{ font-size: 9.5px; }
+    .letterhead-text .l4{ font-size: 8px; margin-top: 4px; }
+    .letterhead-text .l5{ font-size: 8px; }
   }
   .letterhead-text{ flex:1; min-width:0; text-align:center; }
   .letterhead-text .l1{
