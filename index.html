@@ -506,6 +506,14 @@ function renderLoading(){
 }
 
 /* ============ HEADER ============ */
+function isAdminRole(role){ return role==='admin-utama' || role==='admin'; }
+function roleLabel(role){
+  if(role==='admin-utama') return 'Admin Utama';
+  if(role==='admin') return 'Admin';
+  return 'Supervisor';
+}
+function pinKeyForRole(role){ return role==='admin-utama' ? 'admin-utama-pin' : 'admin-pin'; }
+
 function renderHeader(){
   const s = state.session;
   const wrap = el(`<div class="app-header">
@@ -513,32 +521,33 @@ function renderHeader(){
     <div class="brand"><div class="name">SIGAP</div></div>
     <div class="seal"><img src="${LOGO_MAN}" alt="Logo MAN Balikpapan"></div>
     <div class="session-badge">
-      <div class="who"><div class="role">${s.role==='admin'?'Admin':'Supervisor'}</div><div class="nm">${s.name||'-'}</div></div>
-      ${s.role==='admin' ? `<button class="icon-btn" id="pinBtn">Ubah PIN</button>` : ``}
+      <div class="who"><div class="role">${roleLabel(s.role)}</div><div class="nm">${s.name||'-'}</div></div>
+      ${isAdminRole(s.role) ? `<button class="icon-btn" id="pinBtn">Ubah PIN</button>` : ``}
       <button class="icon-btn" id="logoutBtn">Ganti Akun</button>
     </div>
   </div>`);
   wrap.querySelector('#logoutBtn').addEventListener('click', logout);
   const pinBtn = wrap.querySelector('#pinBtn');
-  if(pinBtn) pinBtn.addEventListener('click', changeAdminPin);
+  if(pinBtn) pinBtn.addEventListener('click', ()=> changeAdminPin(state.session.role));
   return wrap;
 }
 
-async function changeAdminPin(){
-  const current = await getShared('admin-pin', null);
+async function changeAdminPin(role){
+  const key = pinKeyForRole(role);
+  const current = await getShared(key, null);
   if(current){
-    const old = prompt('Masukkan PIN Admin saat ini:');
+    const old = prompt(`Masukkan PIN ${roleLabel(role)} saat ini:`);
     if(old===null) return;
     if(old.trim()!==current){ alert('PIN saat ini salah.'); return; }
   }
-  const next = prompt('Masukkan PIN Admin baru (4-6 digit angka):');
+  const next = prompt(`Masukkan PIN ${roleLabel(role)} baru (4-6 digit angka):`);
   if(next===null) return;
   if(!/^\d{4,6}$/.test(next.trim())){ alert('PIN harus 4-6 digit angka.'); return; }
   const confirmNext = prompt('Ulangi PIN baru:');
   if(confirmNext===null) return;
   if(confirmNext.trim()!==next.trim()){ alert('Konfirmasi PIN tidak cocok.'); return; }
-  await setShared('admin-pin', next.trim());
-  alert('PIN Admin berhasil diperbarui.');
+  await setShared(key, next.trim());
+  alert(`PIN ${roleLabel(role)} berhasil diperbarui.`);
 }
 
 async function logout(){
@@ -557,23 +566,40 @@ function renderLogin(){
 function renderLoginStep(container, step, opts){
   if(step==='select'){
     container.innerHTML = `
-      <div style="display:flex;gap:12px;align-items:center;justify-content:center;"><div class="seal" style="width:48px;height:48px;"><img src="${LOGO_KEMENAG}" alt="Logo Kementerian Agama"></div><div class="seal" style="width:48px;height:48px;"><img src="${LOGO_MAN}" alt="Logo MAN Balikpapan"></div></div>
+      <div id="sealTapZone" style="display:flex;gap:12px;align-items:center;justify-content:center;cursor:default;"><div class="seal" style="width:48px;height:48px;"><img src="${LOGO_KEMENAG}" alt="Logo Kementerian Agama"></div><div class="seal" style="width:48px;height:48px;"><img src="${LOGO_MAN}" alt="Logo MAN Balikpapan"></div></div>
       <h1>SIGAP</h1>
       <p>Instrumen Supervisi Akademik · MAN Balikpapan</p>
       <button class="role-btn" id="btnSupervisor"><span class="emoji">📋</span><span>Kepala Madrasah / Supervisor<small>Isi instrumen supervisi dan lihat arsip supervisi milik Anda</small></span></button>
       <p class="note-small">Tanpa kata sandi — hanya untuk memisahkan tampilan pada perangkat ini. Semua data tersimpan bersama (bukan hanya di perangkat ini).</p>
       <button class="link-btn" id="btnAdmin" style="margin-top:4px;">Masuk sebagai Admin →</button>
     `;
-    container.querySelector('#btnAdmin').addEventListener('click', ()=> renderLoginStep(container,'admin-pin'));
+    container.querySelector('#btnAdmin').addEventListener('click', ()=> renderLoginStep(container,'admin-pin', {role:'admin'}));
     container.querySelector('#btnSupervisor').addEventListener('click', ()=> renderLoginStep(container,'supervisor-pick'));
+    // Hidden entry to Admin Utama: tap the logos 7 times in a row (within 2s of the last tap).
+    let tapCount = 0, tapTimer = null;
+    container.querySelector('#sealTapZone').addEventListener('click', ()=>{
+      tapCount++;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(()=>{ tapCount = 0; }, 2000);
+      if(tapCount>=7){
+        tapCount = 0; clearTimeout(tapTimer);
+        renderLoginStep(container, 'admin-pin', {role:'admin-utama'});
+      }
+    });
+    // Hidden entry via secret link: open the site with ?utama=1
+    if(new URLSearchParams(location.search).has('utama')){
+      renderLoginStep(container, 'admin-pin', {role:'admin-utama'});
+    }
   }
   else if(step==='admin-pin'){
+    const adminRole = (opts && opts.role) || 'admin';
+    const pinKey = pinKeyForRole(adminRole);
     container.innerHTML = `<p class="note-small">Memuat…</p>`;
-    getShared('admin-pin', null).then(pin=>{
+    getShared(pinKey, null).then(pin=>{
       if(!pin){
         container.innerHTML = `
-          <h1>Buat PIN Admin</h1>
-          <p>Belum ada PIN Admin untuk madrasah ini. Buat PIN 4–6 digit untuk melindungi akses Admin agar tidak sembarang orang bisa mengubah data.</p>
+          <h1>Buat PIN ${roleLabel(adminRole)}</h1>
+          <p>Belum ada PIN ${roleLabel(adminRole)} untuk madrasah ini. Buat PIN 4–6 digit untuk melindungi akses ini agar tidak sembarang orang bisa mengubah data.</p>
           <div class="form-mini">
             <label>PIN Baru</label>
             <input id="pinNew" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
@@ -590,13 +616,13 @@ function renderLoginStep(container, step, opts){
           const p2 = container.querySelector('#pinNew2').value.trim();
           if(!/^\d{4,6}$/.test(p1)){ alert('PIN harus 4-6 digit angka.'); return; }
           if(p1!==p2){ alert('Konfirmasi PIN tidak cocok.'); return; }
-          await setShared('admin-pin', p1);
-          renderLoginStep(container, 'admin-name');
+          await setShared(pinKey, p1);
+          renderLoginStep(container, 'admin-name', {role:adminRole});
         });
       } else {
         container.innerHTML = `
-          <h1>Masuk sebagai Admin</h1>
-          <p>Masukkan PIN Admin untuk melanjutkan.</p>
+          <h1>Masuk sebagai ${roleLabel(adminRole)}</h1>
+          <p>Masukkan PIN ${roleLabel(adminRole)} untuk melanjutkan.</p>
           <div class="form-mini">
             <label>PIN</label>
             <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" autofocus>
@@ -609,7 +635,7 @@ function renderLoginStep(container, step, opts){
         container.querySelector('#backBtn').addEventListener('click', ()=> renderLoginStep(container,'select'));
         const doCheck = ()=>{
           const val = container.querySelector('#pinInput').value.trim();
-          if(val===pin){ renderLoginStep(container,'admin-name'); }
+          if(val===pin){ renderLoginStep(container,'admin-name', {role:adminRole}); }
           else{ container.querySelector('#pinError').style.display='block'; }
         };
         container.querySelector('#pinGoBtn').addEventListener('click', doCheck);
@@ -618,11 +644,12 @@ function renderLoginStep(container, step, opts){
     });
   }
   else if(step==='admin-name'){
+    const adminRole = (opts && opts.role) || 'admin';
     container.innerHTML = `
-      <h1>Masuk sebagai Admin</h1>
+      <h1>Masuk sebagai ${roleLabel(adminRole)}</h1>
       <p>Isi nama Anda untuk ditampilkan pada sesi ini.</p>
       <div class="form-mini">
-        <label>Nama Admin</label>
+        <label>Nama</label>
         <input id="adminNameInput" placeholder="Contoh: Tata Usaha MAN Balikpapan">
       </div>
       <div style="display:flex;gap:8px;margin-top:16px;">
@@ -631,8 +658,8 @@ function renderLoginStep(container, step, opts){
       </div>`;
     container.querySelector('#backBtn').addEventListener('click', ()=> renderLoginStep(container,'select'));
     container.querySelector('#goBtn').addEventListener('click', async ()=>{
-      const name = container.querySelector('#adminNameInput').value.trim() || 'Admin';
-      state.session = { role:'admin', name };
+      const name = container.querySelector('#adminNameInput').value.trim() || roleLabel(adminRole);
+      state.session = { role:adminRole, name };
       await setPersonal('session', state.session);
       await loadMaster(); await loadHasilList();
       state.view='admin'; state.adminTab='rekap';
@@ -703,14 +730,20 @@ async function loginAsSupervisor(sv){
 /* ============ ADMIN ============ */
 function renderAdmin(){
   const wrap = document.createElement('div');
-  if(state.adminTab==='guru') wrap.appendChild(renderAdminGuru());
-  else if(state.adminTab==='supervisor') wrap.appendChild(renderAdminSupervisor());
-  else if(state.adminTab==='jadwal') wrap.appendChild(renderAdminJadwal());
+  const isUtama = state.session.role==='admin-utama';
+  const tab = isUtama ? state.adminTab : 'rekap';
+  if(tab==='guru') wrap.appendChild(renderAdminGuru());
+  else if(tab==='supervisor') wrap.appendChild(renderAdminSupervisor());
+  else if(tab==='jadwal') wrap.appendChild(renderAdminJadwal());
   else wrap.appendChild(renderAdminRekap());
   return wrap;
 }
 
 function renderAdminFooter(){
+  const isUtama = state.session.role==='admin-utama';
+  if(!isUtama){
+    return el(`<div class="app-footer"><div style="flex:1;text-align:center;font-size:11.5px;color:var(--ink-soft);">📁 Arsip Hasil Supervisi <span style="color:var(--ink-soft);">· mode lihat &amp; cetak</span></div></div>`);
+  }
   const foot = el(`<div class="app-footer"><div class="tabbar">
     <button data-tab="rekap">Arsip</button>
     <button data-tab="jadwal">Jadwal</button>
@@ -1264,21 +1297,23 @@ function renderDetail(){
 }
 
 function renderDetailFooter(){
+  const canDelete = state.session.role!=='admin'; // Admin (biasa) is view/print-only
   const foot = el(`<div class="app-footer">
     <button class="btn btn-ghost" id="backBtn">Kembali</button>
     <div></div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-ghost" id="delBtn">Hapus</button>
+      ${canDelete ? `<button class="btn btn-ghost" id="delBtn">Hapus</button>` : ``}
       <button class="btn btn-primary" id="printBtn">Cetak</button>
     </div>
   </div>`);
-  foot.querySelector('#backBtn').addEventListener('click', ()=>{ state.view = state.session.role==='admin' ? 'admin' : 'supervisor-home'; render(); });
+  foot.querySelector('#backBtn').addEventListener('click', ()=>{ state.view = isAdminRole(state.session.role) ? 'admin' : 'supervisor-home'; render(); });
   foot.querySelector('#printBtn').addEventListener('click', ()=>{ const r = state.hasilList.find(x=> x.id===state.viewingId); buildPrintArea(r); window.print(); });
-  foot.querySelector('#delBtn').addEventListener('click', async ()=>{
+  const delBtn = foot.querySelector('#delBtn');
+  if(delBtn) delBtn.addEventListener('click', async ()=>{
     if(!confirm('Hapus hasil supervisi ini dari arsip? Tindakan tidak dapat dibatalkan.')) return;
     try{ await deleteShared('hasil:'+state.viewingId); }catch(e){}
     await loadHasilList();
-    state.view = state.session.role==='admin' ? 'admin' : 'supervisor-home';
+    state.view = isAdminRole(state.session.role) ? 'admin' : 'supervisor-home';
     render();
   });
   return foot;
@@ -1341,7 +1376,7 @@ async function init(){
   if(session){
     state.session = session;
     await loadMaster(); await loadHasilList();
-    if(session.role==='admin'){ state.view='admin'; state.adminTab='rekap'; }
+    if(isAdminRole(session.role)){ state.view='admin'; state.adminTab='rekap'; }
     else{
       const draft = await getPersonal('draft', null);
       if(draft){ state.draft = draft; state.view='wizard'; state.step=0; }
