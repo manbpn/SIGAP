@@ -748,9 +748,20 @@ function renderAdminGuru(){
     state.masterGuru.forEach(g=>{
       const row = el(`<div class="list-row">
         <div class="info"><div class="t1">${g.nama}</div><div class="t2">${g.mapel||'-'}</div></div>
-        <div class="row-actions"><button class="danger" data-id="${g.id}">Hapus</button></div>
+        <div class="row-actions"><button data-id="${g.id}">Edit</button><button class="danger" data-id="${g.id}">Hapus</button></div>
       </div>`);
-      row.querySelector('button').addEventListener('click', async ()=>{
+      const [editBtn, delBtn] = row.querySelectorAll('button');
+      editBtn.addEventListener('click', async ()=>{
+        const newNama = prompt('Nama guru:', g.nama);
+        if(newNama===null) return;
+        const newMapel = prompt('Mata pelajaran:', g.mapel||'');
+        if(newMapel===null) return;
+        if(!newNama.trim()){ alert('Nama tidak boleh kosong.'); return; }
+        g.nama = newNama.trim(); g.mapel = newMapel.trim();
+        await setShared('master-guru', state.masterGuru);
+        render();
+      });
+      delBtn.addEventListener('click', async ()=>{
         if(!confirm(`Hapus data guru "${g.nama}"?`)) return;
         state.masterGuru = state.masterGuru.filter(x=> x.id!==g.id);
         await setShared('master-guru', state.masterGuru);
@@ -810,9 +821,20 @@ function renderAdminSupervisor(){
     state.masterSupervisor.forEach(sv=>{
       const row = el(`<div class="list-row">
         <div class="info"><div class="t1">${sv.nama}</div><div class="t2">NIP ${sv.nip||'-'}</div></div>
-        <div class="row-actions"><button class="danger" data-id="${sv.id}">Hapus</button></div>
+        <div class="row-actions"><button data-id="${sv.id}">Edit</button><button class="danger" data-id="${sv.id}">Hapus</button></div>
       </div>`);
-      row.querySelector('button').addEventListener('click', async ()=>{
+      const [editBtn, delBtn] = row.querySelectorAll('button');
+      editBtn.addEventListener('click', async ()=>{
+        const newNama = prompt('Nama supervisor:', sv.nama);
+        if(newNama===null) return;
+        const newNip = prompt('NIP:', sv.nip||'');
+        if(newNip===null) return;
+        if(!newNama.trim()){ alert('Nama tidak boleh kosong.'); return; }
+        sv.nama = newNama.trim(); sv.nip = newNip.trim();
+        await setShared('master-supervisor', state.masterSupervisor);
+        render();
+      });
+      delBtn.addEventListener('click', async ()=>{
         if(!confirm(`Hapus akun supervisor "${sv.nama}"?`)) return;
         state.masterSupervisor = state.masterSupervisor.filter(x=> x.id!==sv.id);
         await setShared('master-supervisor', state.masterSupervisor);
@@ -894,7 +916,10 @@ function renderRekapList(records, subtitle){
 
 /* ============ SUPERVISOR HOME ============ */
 function renderSupervisorHome(){
-  const own = state.hasilList.filter(r=> r.supervisorId===state.session.id || r.supervisorNip===state.session.nip);
+  const own = state.hasilList.filter(r=>
+    r.supervisorId === state.session.id ||
+    (!!r.supervisorNip && !!state.session.nip && r.supervisorNip === state.session.nip)
+  );
   const myName = (state.session.name||'').trim().toLowerCase();
   const myJadwal = state.jadwal.filter(j=> (j.supervisor||'').trim().toLowerCase()===myName)
     .sort((a,b)=> a.tanggal.localeCompare(b.tanggal));
