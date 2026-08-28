@@ -941,8 +941,11 @@ function renderSupervisorHome(){
   const myJadwal = state.jadwal.filter(j=> (j.supervisor||'').trim().toLowerCase()===myName)
     .sort((a,b)=> a.tanggal.localeCompare(b.tanggal));
   const doneGuruDates = new Set(own.map(r=> (r.guruNama||'').toLowerCase()+'|'+(r.tanggal||'')));
+  const pendingDraft = getPersonal('draft', null);
+  const hasPendingDraft = pendingDraft && pendingDraft.supervisorId===state.session.id;
 
   const wrap = el(`<div>
+    ${hasPendingDraft ? `<div class="card" style="border-color:var(--gold-soft);background:#FEFCF6;" id="resumeCard"></div>` : ''}
     <div class="card">
       <h2>Jadwal Supervisi Saya</h2>
       ${myJadwal.length
@@ -955,6 +958,27 @@ function renderSupervisorHome(){
       <button class="btn btn-primary" id="startBtn" style="width:100%;">+ Mulai Supervisi Baru</button>
     </div>
   </div>`);
+
+  if(hasPendingDraft){
+    const g = state.masterGuru.find(x=> x.id===pendingDraft.guruId);
+    const { answered } = calcTotals(pendingDraft.scores);
+    const resumeCard = wrap.querySelector('#resumeCard');
+    resumeCard.innerHTML = `
+      <h2>⏳ Lanjutkan Pengisian</h2>
+      <p style="font-size:12.5px;margin:0 0 10px;">Ada supervisi yang belum Anda simpan ke arsip: <b>${g?g.nama:'(guru belum dipilih)'}</b> · ${answered}/${TOTAL_ITEMS} aspek terisi.</p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" id="resumeBtn" style="flex:1;">Lanjutkan Pengisian</button>
+        <button class="btn btn-ghost" id="discardBtn" style="flex:none;">Buang Draf</button>
+      </div>`;
+    resumeCard.querySelector('#resumeBtn').addEventListener('click', ()=>{
+      state.draft = pendingDraft; state.step = 0; state.view='wizard'; render();
+    });
+    resumeCard.querySelector('#discardBtn').addEventListener('click', async ()=>{
+      if(!confirm('Buang draf yang belum disimpan ini? Isian yang sudah dimasukkan akan hilang.')) return;
+      await deletePersonal('draft');
+      render();
+    });
+  }
 
   if(myJadwal.length){
     const listEl = wrap.querySelector('#myJadwalList');
@@ -977,7 +1001,15 @@ function renderSupervisorHome(){
 }
 
 async function startFromJadwal(j){
-  const draft = { id:uid(), guruId:null, fields:{ mapel:'', kelasMateri:'', tempat:'Balikpapan', tanggal:'' }, scores:{}, notes:{} };
+  const existing = getPersonal('draft', null);
+  if(existing && existing.supervisorId===state.session.id && !existing.savedToArchive){
+    const g = state.masterGuru.find(x=> x.id===existing.guruId);
+    const label = g ? g.nama : 'supervisi yang belum diberi nama guru';
+    if(!confirm(`Anda punya pengisian yang belum disimpan untuk "${label}".\n\nMemulai supervisi baru akan MENGGANTI draf tersebut dan isian yang belum disimpan akan hilang.\n\nLanjutkan memulai yang baru?`)){
+      return;
+    }
+  }
+  const draft = { id:uid(), supervisorId: state.session.id, guruId:null, fields:{ mapel:'', kelasMateri:'', tempat:'Balikpapan', tanggal:'' }, scores:{}, notes:{} };
   if(j){
     const g = state.masterGuru.find(x=> x.nama.trim().toLowerCase()===j.guru.trim().toLowerCase());
     if(g) draft.guruId = g.id;
@@ -1164,7 +1196,7 @@ function renderWizardFooter(){
   const foot = el(`<div class="app-footer">
     <button class="btn btn-ghost" id="prevBtn">Kembali</button>
     <div class="steps-dots">${WIZARD_STEPS.map((s,i)=> `<div class="dot ${i===state.step?'active':i<state.step?'done':''}"></div>`).join('')}</div>
-    <button class="btn btn-primary" id="nextBtn">${state.step===WIZARD_STEPS.length-1 ? 'Selesai' : 'Lanjut'}</button>
+    <button class="btn btn-primary" id="nextBtn">${state.step===WIZARD_STEPS.length-1 ? 'Keluar' : 'Lanjut'}</button>
   </div>`);
   foot.querySelector('#prevBtn').addEventListener('click', async ()=>{
     if(state.step===0){ if(confirm('Keluar dari pengisian? Draf akan tetap tersimpan sementara.')){ state.view='supervisor-home'; render(); } return; }
