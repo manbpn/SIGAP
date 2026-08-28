@@ -379,8 +379,8 @@ async function getShared(key, fallback){
   }catch(e){ console.error('Firestore get failed', key, e); return fallback; }
 }
 async function setShared(key, val){
-  try{ await db.collection(COL).doc(key).set({ value: JSON.stringify(val), updatedAt: new Date().toISOString() }); }
-  catch(e){ console.error('Firestore set failed', key, e); }
+  try{ await db.collection(COL).doc(key).set({ value: JSON.stringify(val), updatedAt: new Date().toISOString() }); return true; }
+  catch(e){ console.error('Firestore set failed', key, e); return false; }
 }
 async function deleteShared(key){
   try{ await db.collection(COL).doc(key).delete(); }catch(e){ console.error('Firestore delete failed', key, e); }
@@ -397,9 +397,22 @@ function setPersonal(key, val){
 function deletePersonal(key){ try{ localStorage.removeItem(key); }catch(e){} }
 
 async function loadMaster(){
-  state.masterGuru = await getShared('master-guru', []);
-  state.masterSupervisor = await getShared('master-supervisor', []);
-  state.jadwal = await getShared('jadwal', []);
+  state.masterGuru = await getSharedCached('master-guru', []);
+  state.masterSupervisor = await getSharedCached('master-supervisor', []);
+  state.jadwal = await getSharedCached('jadwal', []);
+}
+// Like getShared, but caches successful results locally and falls back to
+// that local cache if the network/Firestore call fails (e.g. offline).
+async function getSharedCached(key, fallback){
+  try{
+    const doc = await db.collection(COL).doc(key).get();
+    const value = doc.exists && doc.data().value !== undefined ? JSON.parse(doc.data().value) : fallback;
+    setPersonal('cache:'+key, value);
+    return value;
+  }catch(e){
+    console.error('Firestore get failed, using local cache', key, e);
+    return getPersonal('cache:'+key, fallback);
+  }
 }
 async function loadHasilList(){
   try{
@@ -414,7 +427,11 @@ async function loadHasilList(){
     });
     records.sort((a,b)=> (b.savedAt||'').localeCompare(a.savedAt||''));
     state.hasilList = records;
-  }catch(e){ console.error('Firestore loadHasilList failed', e); state.hasilList = []; }
+    setPersonal('cache:hasil-list', records);
+  }catch(e){
+    console.error('Firestore loadHasilList failed, using local cache', e);
+    state.hasilList = getPersonal('cache:hasil-list', []);
+  }
 }
 
 /* ============ CALC ============ */
@@ -1128,7 +1145,14 @@ function currentRecordFromDraft(){
 async function saveToArchive(){
   if(!state.draft.guruId){ alert('Pilih guru yang disupervisi terlebih dahulu (langkah Identitas).'); state.step=0; render(); return; }
   const record = currentRecordFromDraft();
-  await setShared('hasil:'+record.id, record);
+  const btn = document.getElementById('saveArsipBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  const ok = await setShared('hasil:'+record.id, record);
+  if(btn){ btn.disabled = false; btn.textContent = '💾 Simpan ke Arsip'; }
+  if(!ok){
+    alert('Gagal menyimpan ke arsip — sepertinya koneksi internet sedang terputus.\n\nJangan khawatir, jawaban Anda TIDAK hilang dan tetap tersimpan di perangkat ini. Silakan coba tekan "Simpan ke Arsip" lagi setelah koneksi internet kembali normal.');
+    return;
+  }
   await deletePersonal('draft');
   await loadHasilList();
   alert('Hasil supervisi tersimpan ke arsip.');
