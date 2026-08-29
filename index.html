@@ -371,6 +371,8 @@ let state = {
   jadwal:[],
   hasilList:[],
   viewingId:null,
+  detailEditing:false,
+  editDraft:null,
 };
 
 /* ============ STORAGE HELPERS (Firestore + localStorage) ============ */
@@ -964,7 +966,7 @@ function renderRekapList(records, subtitle){
         </div>
         <span class="badge ${statusBadgeClass(r.status)}">${r.nilai!=null?r.nilai.toFixed(1)+'%':'-'} · ${r.status}</span>
       </div>`);
-      row.addEventListener('click', ()=>{ state.viewingId = r.id; state.view='detail'; render(); });
+      row.addEventListener('click', ()=>{ state.viewingId = r.id; state.view='detail'; state.detailEditing=false; state.editDraft=null; render(); });
       listEl.appendChild(row);
     });
   }
@@ -1254,7 +1256,10 @@ function renderWizardFooter(){
 function renderDetail(){
   const r = state.hasilList.find(x=> x.id===state.viewingId);
   if(!r) return el(`<div class="empty-state">Data tidak ditemukan.</div>`);
+  const editing = state.detailEditing && state.session.role==='admin-utama';
+  const src = editing ? state.editDraft : r;
   const wrap = el(`<div>
+    ${editing ? `<div class="card" style="border-color:var(--gold-soft);background:#FEFCF6;"><p style="font-size:12.5px;margin:0;">✏️ <b>Mode Edit</b> — Anda sedang mengoreksi skor/catatan arsip ini sebagai Admin Utama. Jangan lupa tekan "Simpan Perubahan" di bawah.</p></div>` : ``}
     <div class="card gauge-card">
       <div class="gauge" style="--pct:${Math.min(r.nilai,100)};"><div class="gauge-inner"><div class="num">${r.nilai.toFixed(1)}</div><div class="lbl">NILAI AKHIR</div></div></div>
       <div class="gauge-meta"><span class="status-pill">${r.status}</span>
@@ -1280,15 +1285,35 @@ function renderDetail(){
     sec.groups.forEach(g=>{
       secCard.appendChild(el(`<div class="group-title">${g.num}. ${g.title}</div>`));
       g.items.forEach(item=>{
-        const val = r.scores ? r.scores[item.id] : undefined;
-        const note = r.notes ? r.notes[item.id] : '';
-        secCard.appendChild(el(`<div class="item">
-          <div class="item-text">${item.text}</div>
-          <div class="item-controls">
-            <span class="badge ${val===2?'badge-good':val===1?'badge-mid':val===0?'badge-bad':''}" style="font-family:var(--font-mono);">${val!=null?val:'—'}</span>
-            ${note?`<span style="font-size:11.5px;color:var(--ink-soft);">${note}</span>`:''}
-          </div>
-        </div>`));
+        const val = src.scores ? src.scores[item.id] : undefined;
+        const note = src.notes ? (src.notes[item.id]||'') : '';
+        if(!editing){
+          secCard.appendChild(el(`<div class="item">
+            <div class="item-text">${item.text}</div>
+            <div class="item-controls">
+              <span class="badge ${val===2?'badge-good':val===1?'badge-mid':val===0?'badge-bad':''}" style="font-family:var(--font-mono);">${val!=null?val:'—'}</span>
+              ${note?`<span style="font-size:11.5px;color:var(--ink-soft);">${note}</span>`:''}
+            </div>
+          </div>`));
+        } else {
+          const row = el(`<div class="item">
+            <div class="item-text">${item.text}</div>
+            <div class="item-controls">
+              <div class="score-group" role="radiogroup">
+                ${[2,1,0].map(v=> `<div class="score-opt" data-val="${v}">
+                  <input type="radio" name="edit-score-${item.id}" id="edit-${item.id}-${v}" value="${v}" ${val===v?'checked':''}>
+                  <label for="edit-${item.id}-${v}">${v} · ${v===2?'Sudah Lengkap':v===1?'Kurang Lengkap':'Tidak'}</label>
+                </div>`).join('')}
+              </div>
+              <input class="note-input" placeholder="Catatan" data-edit-note="${item.id}" value="${note.replace(/"/g,'&quot;')}">
+            </div>
+          </div>`);
+          row.querySelectorAll('input[type=radio]').forEach(radio=>{
+            radio.addEventListener('change', ()=>{ state.editDraft.scores[item.id] = Number(radio.value); });
+          });
+          row.querySelector('.note-input').addEventListener('input', (e)=>{ state.editDraft.notes[item.id] = e.target.value; });
+          secCard.appendChild(row);
+        }
       });
     });
     holder.appendChild(secCard);
@@ -1298,16 +1323,58 @@ function renderDetail(){
 
 function renderDetailFooter(){
   const canDelete = state.session.role!=='admin'; // Admin (biasa) is view/print-only
+  const canEdit = state.session.role==='admin-utama';
+  const editing = state.detailEditing && canEdit;
+
+  if(editing){
+    const foot = el(`<div class="app-footer">
+      <button class="btn btn-ghost" id="cancelEditBtn">Batal</button>
+      <div></div>
+      <button class="btn btn-primary" id="saveEditBtn">💾 Simpan Perubahan</button>
+    </div>`);
+    foot.querySelector('#cancelEditBtn').addEventListener('click', ()=>{
+      if(!confirm('Batalkan perubahan yang belum disimpan?')) return;
+      state.detailEditing=false; state.editDraft=null; render();
+    });
+    foot.querySelector('#saveEditBtn').addEventListener('click', async ()=>{
+      const btn = document.getElementById('saveEditBtn');
+      btn.disabled = true; btn.textContent = 'Menyimpan…';
+      const { total, nilai, status } = calcTotals(state.editDraft.scores);
+      const updated = { ...state.editDraft, total, nilai, status };
+      const ok = await setShared('hasil:'+updated.id, updated);
+      if(!ok){
+        btn.disabled = false; btn.textContent = '💾 Simpan Perubahan';
+        alert('Gagal menyimpan perubahan. Periksa koneksi internet dan coba lagi. Perubahan Anda belum hilang, tetap tampil di layar ini.');
+        return;
+      }
+      await loadHasilList();
+      state.detailEditing=false; state.editDraft=null;
+      alert('Perubahan berhasil disimpan.');
+      render();
+    });
+    return foot;
+  }
+
   const foot = el(`<div class="app-footer">
     <button class="btn btn-ghost" id="backBtn">Kembali</button>
     <div></div>
     <div style="display:flex;gap:8px;">
+      ${canEdit ? `<button class="btn btn-ghost" id="editBtn">✏️ Edit</button>` : ``}
       ${canDelete ? `<button class="btn btn-ghost" id="delBtn">Hapus</button>` : ``}
       <button class="btn btn-primary" id="printBtn">Cetak</button>
     </div>
   </div>`);
   foot.querySelector('#backBtn').addEventListener('click', ()=>{ state.view = isAdminRole(state.session.role) ? 'admin' : 'supervisor-home'; render(); });
   foot.querySelector('#printBtn').addEventListener('click', ()=>{ const r = state.hasilList.find(x=> x.id===state.viewingId); buildPrintArea(r); window.print(); });
+  const editBtn = foot.querySelector('#editBtn');
+  if(editBtn) editBtn.addEventListener('click', ()=>{
+    const r = state.hasilList.find(x=> x.id===state.viewingId);
+    state.editDraft = JSON.parse(JSON.stringify(r));
+    if(!state.editDraft.scores) state.editDraft.scores = {};
+    if(!state.editDraft.notes) state.editDraft.notes = {};
+    state.detailEditing = true;
+    render();
+  });
   const delBtn = foot.querySelector('#delBtn');
   if(delBtn) delBtn.addEventListener('click', async ()=>{
     if(!confirm('Hapus hasil supervisi ini dari arsip? Tindakan tidak dapat dibatalkan.')) return;
