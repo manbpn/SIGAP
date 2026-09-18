@@ -1256,10 +1256,10 @@ function renderWizardFooter(){
 function renderDetail(){
   const r = state.hasilList.find(x=> x.id===state.viewingId);
   if(!r) return el(`<div class="empty-state">Data tidak ditemukan.</div>`);
-  const editing = state.detailEditing && state.session.role==='admin-utama';
+  const editing = state.detailEditing && canEditRecord(r);
   const src = editing ? state.editDraft : r;
   const wrap = el(`<div>
-    ${editing ? `<div class="card" style="border-color:var(--gold-soft);background:#FEFCF6;"><p style="font-size:12.5px;margin:0;">✏️ <b>Mode Edit</b> — Anda sedang mengoreksi skor/catatan arsip ini sebagai Admin Utama. Jangan lupa tekan "Simpan Perubahan" di bawah.</p></div>` : ``}
+    ${editing ? `<div class="card" style="border-color:var(--gold-soft);background:#FEFCF6;"><p style="font-size:12.5px;margin:0;">✏️ <b>Mode Edit</b> — Anda sedang mengoreksi skor/catatan ${state.session.role==='admin-utama' ? 'arsip ini sebagai Admin Utama' : 'hasil supervisi Anda sendiri'}. Jangan lupa tekan "Simpan Perubahan" di bawah.</p></div>` : ``}
     <div class="card gauge-card">
       <div class="gauge" style="--pct:${Math.min(r.nilai,100)};"><div class="gauge-inner"><div class="num">${r.nilai.toFixed(1)}</div><div class="lbl">NILAI AKHIR</div></div></div>
       <div class="gauge-meta"><span class="status-pill">${r.status}</span>
@@ -1276,6 +1276,7 @@ function renderDetail(){
         <div class="field"><label>Supervisor</label><input readonly value="${r.supervisorNama||'-'}"></div>
         <div class="field"><label>NIP Supervisor</label><input readonly value="${r.supervisorNip||'-'}"></div>
       </div>
+      ${r.editedBy ? `<p style="font-size:11px;color:var(--ink-soft);margin:10px 0 0;">✏️ Terakhir dikoreksi oleh <b>${r.editedBy}</b> (${r.editedByRole||'-'}) pada ${new Date(r.editedAt).toLocaleString('id-ID')}</p>` : ``}
     </div>
     <div id="detailSections"></div>
   </div>`);
@@ -1321,9 +1322,22 @@ function renderDetail(){
   return wrap;
 }
 
+function ownsRecord(r){
+  if(!r || state.session.role!=='supervisor') return false;
+  return r.supervisorId === state.session.id ||
+    (!!r.supervisorNip && !!state.session.nip && r.supervisorNip === state.session.nip);
+}
+function canEditRecord(r){
+  return state.session.role==='admin-utama' || ownsRecord(r);
+}
+function canDeleteRecord(r){
+  return state.session.role==='admin-utama' || ownsRecord(r);
+}
+
 function renderDetailFooter(){
-  const canDelete = state.session.role!=='admin'; // Admin (biasa) is view/print-only
-  const canEdit = state.session.role==='admin-utama';
+  const r = state.hasilList.find(x=> x.id===state.viewingId);
+  const canEdit = canEditRecord(r);
+  const canDelete = canDeleteRecord(r);
   const editing = state.detailEditing && canEdit;
 
   if(editing){
@@ -1340,7 +1354,8 @@ function renderDetailFooter(){
       const btn = document.getElementById('saveEditBtn');
       btn.disabled = true; btn.textContent = 'Menyimpan…';
       const { total, nilai, status } = calcTotals(state.editDraft.scores);
-      const updated = { ...state.editDraft, total, nilai, status };
+      const updated = { ...state.editDraft, total, nilai, status,
+        editedBy: state.session.name, editedByRole: roleLabel(state.session.role), editedAt: new Date().toISOString() };
       const ok = await setShared('hasil:'+updated.id, updated);
       if(!ok){
         btn.disabled = false; btn.textContent = '💾 Simpan Perubahan';
