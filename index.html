@@ -514,7 +514,11 @@ function roleLabel(role){
   if(role==='admin') return 'Admin';
   return 'Supervisor';
 }
-function pinKeyForRole(role){ return role==='admin-utama' ? 'admin-utama-pin' : 'admin-pin'; }
+function pinKeyForRole(role){
+  if(role==='admin-utama') return 'admin-utama-pin';
+  if(role==='admin') return 'admin-pin';
+  return 'sv-pin:'+state.session.id;
+}
 
 function renderHeader(){
   const s = state.session;
@@ -524,7 +528,7 @@ function renderHeader(){
     <div class="seal"><img src="${LOGO_MAN}" alt="Logo MAN Balikpapan"></div>
     <div class="session-badge">
       <div class="who"><div class="role">${roleLabel(s.role)}</div><div class="nm">${s.name||'-'}</div></div>
-      ${isAdminRole(s.role) ? `<button class="icon-btn" id="pinBtn">Ubah PIN</button>` : ``}
+      <button class="icon-btn" id="pinBtn">Ubah PIN</button>
       <button class="icon-btn" id="logoutBtn">Ganti Akun</button>
     </div>
   </div>`);
@@ -704,7 +708,7 @@ function renderLoginStep(container, step, opts){
           const id = container.querySelector('#svSelect').value;
           const sv = state.masterSupervisor.find(x=> x.id===id);
           if(!sv){ alert('Pilih akun terlebih dahulu.'); return; }
-          await loginAsSupervisor(sv);
+          renderLoginStep(container, 'supervisor-pin', {sv});
         });
       }
       container.querySelector('#svGoNew').addEventListener('click', async ()=>{
@@ -714,10 +718,64 @@ function renderLoginStep(container, step, opts){
         const sv = { id:uid(), nama, nip };
         state.masterSupervisor.push(sv);
         await setShared('master-supervisor', state.masterSupervisor);
-        await loginAsSupervisor(sv);
+        renderLoginStep(container, 'supervisor-pin', {sv});
       });
     });
     container.innerHTML = `<p class="note-small">Memuat data…</p>`;
+  }
+  else if(step==='supervisor-pin'){
+    const sv = opts.sv;
+    const pinKey = 'sv-pin:'+sv.id;
+    container.innerHTML = `<p class="note-small">Memuat…</p>`;
+    getShared(pinKey, null).then(pin=>{
+      if(!pin){
+        container.innerHTML = `
+          <h1>Buat PIN Anda</h1>
+          <p>Halo, <b>${sv.nama}</b>. Anda belum punya PIN. Buat PIN 4–6 digit agar hanya Anda yang bisa masuk dan mengisi supervisi atas nama Anda.</p>
+          <div class="form-mini">
+            <label>PIN Baru</label>
+            <input id="pinNew" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+            <label>Ulangi PIN</label>
+            <input id="pinNew2" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button class="btn btn-ghost" id="backBtn" style="flex:1;">Kembali</button>
+            <button class="btn btn-primary" id="setPinBtn" style="flex:1;">Buat &amp; Masuk</button>
+          </div>
+          <p class="note-small">Ingat PIN ini baik-baik. Jika lupa, hubungi Admin Utama untuk mereset.</p>`;
+        container.querySelector('#backBtn').addEventListener('click', ()=> renderLoginStep(container,'supervisor-pick'));
+        container.querySelector('#setPinBtn').addEventListener('click', async ()=>{
+          const p1 = container.querySelector('#pinNew').value.trim();
+          const p2 = container.querySelector('#pinNew2').value.trim();
+          if(!/^\d{4,6}$/.test(p1)){ alert('PIN harus 4-6 digit angka.'); return; }
+          if(p1!==p2){ alert('Konfirmasi PIN tidak cocok.'); return; }
+          await setShared(pinKey, p1);
+          await loginAsSupervisor(sv);
+        });
+      } else {
+        container.innerHTML = `
+          <h1>Masukkan PIN</h1>
+          <p>Masuk sebagai <b>${sv.nama}</b>.</p>
+          <div class="form-mini">
+            <label>PIN</label>
+            <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" autofocus>
+          </div>
+          <p id="pinError" style="display:none;color:var(--bad);font-size:11.5px;margin-top:8px;">PIN salah, coba lagi.</p>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button class="btn btn-ghost" id="backBtn" style="flex:1;">Kembali</button>
+            <button class="btn btn-primary" id="pinGoBtn" style="flex:1;">Masuk</button>
+          </div>
+          <p class="note-small">Lupa PIN? Hubungi Admin Utama untuk mereset.</p>`;
+        container.querySelector('#backBtn').addEventListener('click', ()=> renderLoginStep(container,'supervisor-pick'));
+        const doCheck = async ()=>{
+          const val = container.querySelector('#pinInput').value.trim();
+          if(val===pin){ await loginAsSupervisor(sv); }
+          else{ container.querySelector('#pinError').style.display='block'; }
+        };
+        container.querySelector('#pinGoBtn').addEventListener('click', doCheck);
+        container.querySelector('#pinInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doCheck(); });
+      }
+    });
   }
 }
 
@@ -880,9 +938,9 @@ function renderAdminSupervisor(){
     state.masterSupervisor.forEach(sv=>{
       const row = el(`<div class="list-row">
         <div class="info"><div class="t1">${sv.nama}</div><div class="t2">NIP ${sv.nip||'-'}</div></div>
-        <div class="row-actions"><button data-id="${sv.id}">Edit</button><button class="danger" data-id="${sv.id}">Hapus</button></div>
+        <div class="row-actions"><button data-id="${sv.id}">Edit</button><button data-id="${sv.id}">Reset PIN</button><button class="danger" data-id="${sv.id}">Hapus</button></div>
       </div>`);
-      const [editBtn, delBtn] = row.querySelectorAll('button');
+      const [editBtn, resetBtn, delBtn] = row.querySelectorAll('button');
       editBtn.addEventListener('click', async ()=>{
         const newNama = prompt('Nama supervisor:', sv.nama);
         if(newNama===null) return;
@@ -892,6 +950,11 @@ function renderAdminSupervisor(){
         sv.nama = newNama.trim(); sv.nip = newNip.trim();
         await setShared('master-supervisor', state.masterSupervisor);
         render();
+      });
+      resetBtn.addEventListener('click', async ()=>{
+        if(!confirm(`Reset PIN untuk "${sv.nama}"?\n\nPIN lamanya akan dihapus. Saat login berikutnya, yang bersangkutan akan diminta membuat PIN baru.`)) return;
+        await deleteShared('sv-pin:'+sv.id);
+        alert(`PIN "${sv.nama}" sudah direset. Minta yang bersangkutan login dan membuat PIN baru.`);
       });
       delBtn.addEventListener('click', async ()=>{
         if(!confirm(`Hapus akun supervisor "${sv.nama}"?`)) return;
