@@ -187,6 +187,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCKTU78o1ATHYO2siWexzS5QHmgIF3jrNM",
@@ -1007,7 +1008,28 @@ function renderAdminJadwal(){
 }
 
 function renderAdminRekap(){
-  return renderRekapList(state.hasilList, 'Semua supervisor');
+  const wrap = document.createElement('div');
+  if(state.hasilList.length){
+    const bulkCard = el(`<div class="card">
+      <h2>Unduh Semua Arsip</h2>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;">${state.hasilList.length} hasil supervisi dari semua supervisor.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="bulkExcelBtn" style="flex:1;min-width:160px;">📊 Unduh Excel</button>
+        <button class="btn btn-ghost" id="bulkPrintBtn" style="flex:1;min-width:160px;">🖨️ Cetak Semua (PDF)</button>
+      </div>
+    </div>`);
+    bulkCard.querySelector('#bulkExcelBtn').addEventListener('click', ()=>{
+      exportArsipExcel(state.hasilList, `rekap-supervisi-semua-${new Date().toISOString().slice(0,10)}.xlsx`);
+    });
+    bulkCard.querySelector('#bulkPrintBtn').addEventListener('click', ()=>{
+      if(!confirm(`Cetak seluruh ${state.hasilList.length} hasil supervisi menjadi satu file PDF (setiap hasil di halaman terpisah)?`)) return;
+      buildPrintAreaMulti(state.hasilList);
+      window.print();
+    });
+    wrap.appendChild(bulkCard);
+  }
+  wrap.appendChild(renderRekapList(state.hasilList, 'Semua supervisor'));
+  return wrap;
 }
 
 function renderRekapList(records, subtitle){
@@ -1465,9 +1487,7 @@ function renderDetailFooter(){
 }
 
 /* ============ PRINT ============ */
-function buildPrintArea(r){
-  const area = document.getElementById('printArea');
-  if(!r){ area.innerHTML=''; return; }
+function buildRecordHtml(r){
   let rows = '';
   DATA.forEach(sec=>{
     rows += `<tr class="sec-row"><td colspan="3">${sec.code}. ${sec.title}</td></tr>`;
@@ -1480,7 +1500,7 @@ function buildPrintArea(r){
       });
     });
   });
-  area.innerHTML = `
+  return `
     <div style="display:flex;align-items:center;gap:14px;">
       <img src="${LOGO_KEMENAG}" alt="Logo Kementerian Agama" style="width:56px;height:56px;object-fit:contain;flex:none;">
       <div style="flex:1;text-align:center;">
@@ -1513,6 +1533,43 @@ function buildPrintArea(r){
       </tr>
     </table>
   `;
+}
+
+function buildPrintArea(r){
+  const area = document.getElementById('printArea');
+  if(!r){ area.innerHTML=''; return; }
+  area.innerHTML = buildRecordHtml(r);
+}
+
+function buildPrintAreaMulti(records){
+  const area = document.getElementById('printArea');
+  if(!records || !records.length){ area.innerHTML=''; return; }
+  area.innerHTML = records.map((r,i)=>
+    `<div${i>0 ? ' style="page-break-before:always;"' : ''}>${buildRecordHtml(r)}</div>`
+  ).join('');
+}
+
+function exportArsipExcel(records, filename){
+  if(!records || !records.length){ alert('Tidak ada data untuk diunduh.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Modul Excel belum siap dimuat, coba lagi sebentar.'); return; }
+  const rows = records.map(r=> ({
+    'Nama Guru': r.guruNama||'-',
+    'Mata Pelajaran': r.mapel||'-',
+    'Kelas/Materi': r.kelasMateri||'-',
+    'Supervisor': r.supervisorNama||'-',
+    'NIP Supervisor': r.supervisorNip||'-',
+    'Tempat': r.tempat||'-',
+    'Tanggal': fmtDate(r.tanggal),
+    'Skor Total': r.total,
+    'Skor Maksimal': MAX_SCORE,
+    'Nilai Akhir (%)': r.nilai,
+    'Ketercapaian': r.status,
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [ {wch:26},{wch:20},{wch:22},{wch:22},{wch:16},{wch:14},{wch:18},{wch:10},{wch:12},{wch:14},{wch:14} ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Rekap Supervisi');
+  XLSX.writeFile(wb, filename || 'rekap-supervisi-sigap.xlsx');
 }
 
 /* ============ INIT ============ */
